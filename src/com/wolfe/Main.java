@@ -80,32 +80,60 @@ public class Main {
         }
 */
 
-        GeocodingResult[] results4 = GeocodingApi.geocode(context, "Pikes Peak").await();
-        System.out.println();
-        if (results4.length > 0) {
-            for (int i = 0 ; i < results4.length ; i++) {
-                GeocodingResult locationResult = results4[i];
-                System.out.println("#" + i + ": results4 length = " + results4.length);
-                System.out.println("#" + i + ": location address = " + locationResult.formattedAddress);
-                System.out.println("#" + i + ": location placeid = " + locationResult.placeId);
-                System.out.println("#" + i + ": location geometry = " + locationResult.geometry.location);
-                for (AddressType item : locationResult.types) {
-                    System.out.println("#" + i + ": location types = " + item);
-                }
-            }
-        } else {
-            System.out.println("Location requested not found");
-        }
+        getGeoCode(context);
 
-        LatLng myTestLatLng = new LatLng(38.84087070,-105.04225950);
-        ElevationResult[] result5 = ElevationApi.getByPoints(context, myTestLatLng).await();
-        if (result5.length >= 1) {
-            ElevationResult myTestElevation = result5[0];
-            System.out.println("The elevation of myTestlevation above sea level is " + myTestElevation.elevation + " meters");
-            System.out.println(String.format("The elevation is %.2f meters.", myTestElevation.elevation));
-            System.out.println();
-        }
+
+        getLatLong(context);
+
+
 
     } // end main method
+
+    private static void getGeoCode(GeoApiContext context) {
+
+        try {
+            GeocodingResult[] results4 = GeocodingApi.geocode(context, "Pikes Peak").await();
+            System.out.println();
+            if (results4.length > 0) {
+                for (int i = 0 ; i < results4.length ; i++) {
+                    GeocodingResult locationResult = results4[i];
+                    System.out.println("#" + i + ": results4 length = " + results4.length);
+                    System.out.println("#" + i + ": location address = " + locationResult.formattedAddress);
+                    System.out.println("#" + i + ": location placeid = " + locationResult.placeId);
+                    System.out.println("#" + i + ": location geometry = " + locationResult.geometry.location);
+                    for (AddressType item : locationResult.types) {
+                        System.out.println("#" + i + ": location types = " + item);
+                    }
+                }
+            } else {
+                System.out.println("Location requested not found");
+            }
+
+        }
+        catch (Exception e) {
+            System.out.println("There was a problem getting location information");
+            System.out.println("Exception: " + e);
+        }
+
+    }
+
+    private static void getLatLong(GeoApiContext context) {
+
+        try {
+            LatLng myTestLatLng = new LatLng(38.84087070,-105.04225950);
+            ElevationResult[] result5 = ElevationApi.getByPoints(context, myTestLatLng).await();
+            if (result5.length >= 1) {
+                ElevationResult myTestElevation = result5[0];
+                System.out.println("The elevation of myTestlevation above sea level is " + myTestElevation.elevation + " meters");
+                System.out.println(String.format("The elevation is %.2f meters.", myTestElevation.elevation));
+                System.out.println();
+            }
+        }
+        catch (Exception e) {
+            System.out.println("There was a problem getting elevation information");
+            System.out.println("Exception: " + e);
+        }
+
+    }
 
 } // end Main class
