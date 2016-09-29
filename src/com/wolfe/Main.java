@@ -3,7 +3,6 @@ package com.wolfe;
 import com.google.maps.ElevationApi;
 import com.google.maps.GeoApiContext;
 import com.google.maps.GeocodingApi;
-import com.google.maps.GeocodingApiRequest;
 import com.google.maps.model.AddressType;
 import com.google.maps.model.ElevationResult;
 import com.google.maps.model.GeocodingResult;
@@ -11,13 +10,28 @@ import com.google.maps.model.LatLng;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
+import java.util.Scanner;
+
+
 
 public class Main {
+
+    //Use this scanner to read text data that will be stored in String variables
+    static Scanner stringScanner = new Scanner(System.in);
+    //Use this scanner to read in numerical data that will be stored in int or double variables
+    static Scanner numberScanner = new Scanner(System.in);
+
+    static GeocodingResult locationResult = null;   // object to hold GeoCoding call result
+    static GeocodingResult[] googleResult = null;   // array of GeoCoding objects
+
+    static int numChoice = 0;                       // refines user choice from list of locations
 
     public static void main(String[] args) throws Exception {
 
         String key = null;
+        String userChoice;
 
+        // Read the Google key from key file
         try (BufferedReader reader = new BufferedReader(new FileReader("key"))) {
             key = reader.readLine();
             System.out.println(key);
@@ -26,78 +40,71 @@ public class Main {
             System.exit(-1);
         }
 
+        // set Google access key letting Google know who is accessing the API
         GeoApiContext context = new GeoApiContext().setApiKey(key);
 
-        /*
-        LatLng mctcLatLng = new LatLng(44.973074, -93.2833356);
-        ElevationResult[] results = ElevationApi.getByPoints(context, mctcLatLng).await();
-        if (results.length >= 1) {
-            ElevationResult mctcElevation = results[0];
-            System.out.println("The elevation of MCTC above sea level is " + mctcElevation.elevation + " meters");
-            System.out.println(String.format("The elevation is %.2f meters.", mctcElevation.elevation));
+        // main loop gets the user desired location and presents the result(s),
+        // the user is asked to pick which location they would like the elevation info for
+        // option 99 is used to start a new search if all returned results unacceptable
+        do {
+            System.out.println("Welcome to the Location/Elevation Finder Program");
             System.out.println();
-        }
+            System.out.println("Please enter a location would like to know about or");
+            String location = stringScanner.nextLine();
 
+            // call the GeoCoding API with the desired location information
+            GeocodingResult[] googleResults = getGeoCode(context, location);
 
-        LatLng myHomeLatLng = new LatLng(44.99770440, -93.23999710);
-        ElevationResult[] result = ElevationApi.getByPoints(context, myHomeLatLng).await();
-        if (result.length >= 1) {
-            ElevationResult myHomeElevation = result[0];
-            System.out.println("The elevation of myHomeElevation above sea level is " + myHomeElevation.elevation + " meters");
-            System.out.println(String.format("The elevation is %.2f meters.", myHomeElevation.elevation));
+            if (googleResults != null) {
+                // refine the search
+                if (googleResults.length > 0) {
+                    System.out.println();
+                    System.out.println("Please select the number of location you would like the elevation for or");
+                    System.out.println("Enter 99 to start a new search: ");
+                    numChoice = numberScanner.nextInt();
+                }
+
+                // validate the user's choice
+                while ((numChoice < 0 || numChoice > googleResults.length) && (googleResults.length > 0)
+                        && (numChoice != 99)) {
+                    System.out.println();
+                    System.out.println("Please select the number of location you would like the elevation for or");
+                    System.out.println("Enter 99 to start a new search: ");
+                    numChoice = numberScanner.nextInt();
+                }
+
+                // show the elevation for the location the user has selected
+                if (googleResults.length > 0 && numChoice != 99) {
+                    getLatLong(context, googleResults[numChoice].geometry.location);
+                }
+            }
+
             System.out.println();
-        }
+            System.out.println("Would you like to select another location (y or n): ");
+            userChoice = stringScanner.nextLine();
 
-        // **********************************************************************************
+        } while (userChoice.equals("y"));
 
-        GeocodingResult[] results1 = GeocodingApi.geocode(context, "Allentown").await();
-        for (int i = 0 ; i < results1.length ; i++) {
-            GeocodingResult locationResult = results1[i];
-            System.out.println("location address = " + locationResult.formattedAddress);
-            System.out.println("results1 length = " + results1.length);
-            System.out.println("location placeid = " + locationResult.placeId);
-            System.out.println("location geometry = " + locationResult.geometry.location);
-            System.out.println();
-        }
-
-        GeocodingResult[] results2 = GeocodingApi.reverseGeocode(context, myHomeLatLng).await();
-        for (int i = 0 ; i < results2.length ; i++) {
-            GeocodingResult locationResult = results2[i];
-            System.out.println("location address = " + locationResult.formattedAddress);
-            System.out.println("location placeid = " + locationResult.placeId);
-            System.out.println("location geometry = " + locationResult.geometry.location);
-            System.out.println();
-        }
-
-        GeocodingResult[] results3 = GeocodingApi.geocode(context, "726 Buchanan St NE, Minneapolis, MN 55413, USA").await();
-        System.out.println();
-        for (int i = 0 ; i < results3.length ; i++) {
-            GeocodingResult locationResult = results3[i];
-            System.out.println("location address = " + locationResult.formattedAddress);
-            System.out.println("results3 length = " + results3.length);
-            System.out.println("location placeid = " + locationResult.placeId);
-            System.out.println("location geometry = " + locationResult.geometry.location);
-        }
-*/
-
-        getGeoCode(context);
-
-
-        getLatLong(context);
-
-
+        // Close scanners. Good practice to clean up resources you use.
+        // Don't try to use scanners after this point. All code that uses scanners goes above here.
+        stringScanner.close();
+        numberScanner.close();
 
     } // end main method
 
-    private static void getGeoCode(GeoApiContext context) {
+
+    // this method calls the GeoCoding API and presents the returned information to the user
+    // can be zero to many items returned from API
+    private static GeocodingResult[] getGeoCode(GeoApiContext context, String location) {
 
         try {
-            GeocodingResult[] results4 = GeocodingApi.geocode(context, "Pikes Peak").await();
+            googleResult = GeocodingApi.geocode(context, location).await();
             System.out.println();
-            if (results4.length > 0) {
-                for (int i = 0 ; i < results4.length ; i++) {
-                    GeocodingResult locationResult = results4[i];
-                    System.out.println("#" + i + ": results4 length = " + results4.length);
+            if (googleResult.length > 0) {
+                for (int i = 0 ; i < googleResult.length ; i++) {
+                    locationResult = googleResult[i];
+                    System.out.println();
+                    //System.out.println("#" + i + ": results length = " + googleResult.length);
                     System.out.println("#" + i + ": location address = " + locationResult.formattedAddress);
                     System.out.println("#" + i + ": location placeid = " + locationResult.placeId);
                     System.out.println("#" + i + ": location geometry = " + locationResult.geometry.location);
@@ -110,22 +117,28 @@ public class Main {
             }
 
         }
-        catch (Exception e) {
+        catch (Exception e) {  // if exception caught, try again
             System.out.println("There was a problem getting location information");
             System.out.println("Exception: " + e);
+            return null;
         }
-
+        return googleResult;
     }
 
-    private static void getLatLong(GeoApiContext context) {
+
+    // this method calls the Elevation API for requested elevation and
+    // displays the results
+    private static void getLatLong(GeoApiContext context, LatLng newElevation) {
 
         try {
-            LatLng myTestLatLng = new LatLng(38.84087070,-105.04225950);
-            ElevationResult[] result5 = ElevationApi.getByPoints(context, myTestLatLng).await();
-            if (result5.length >= 1) {
-                ElevationResult myTestElevation = result5[0];
-                System.out.println("The elevation of myTestlevation above sea level is " + myTestElevation.elevation + " meters");
-                System.out.println(String.format("The elevation is %.2f meters.", myTestElevation.elevation));
+            // LatLng myTestLatLng = new LatLng(38.84087070,-105.04225950);
+            ElevationResult[] elevation = ElevationApi.getByPoints(context, newElevation).await();
+            if (elevation.length >= 1) {
+                ElevationResult myTestElevation = elevation[0];
+                System.out.println();
+                System.out.println("Location: " + googleResult[numChoice].formattedAddress);
+                System.out.println("Data for Latitude/Longitude: " + newElevation);
+                System.out.println(String.format("The elevation above sea level is %.2f meters.", myTestElevation.elevation));
                 System.out.println();
             }
         }
@@ -133,7 +146,6 @@ public class Main {
             System.out.println("There was a problem getting elevation information");
             System.out.println("Exception: " + e);
         }
-
     }
 
 } // end Main class
